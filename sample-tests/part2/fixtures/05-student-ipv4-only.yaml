@@ -1,0 +1,11 @@
+desired:
+  name: Loopback777
+  ipv4: 198.51.100.77/32
+  description: IPA2026-TEST-777
+  admin_state: down
+
+current:
+  name: Loopback777
+  ipv4: 198.51.100.7/32
+  description: IPA2026-TEST-777
+  admin_state: down

@@ -1,0 +1,11 @@
+desired:
+  name: Loopback999
+  ipv4: 198.51.100.99/32
+  description: IPA2026-TEST-999
+  admin_state: up
+
+current:
+  name: Loopback999
+  ipv4: 198.51.100.98/32
+  description: LEGACY-999
+  admin_state: up

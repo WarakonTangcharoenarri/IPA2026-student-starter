@@ -1,0 +1,13 @@
+fixture: 07-student-multiple-fields.yaml
+
+expected:
+  status: ok
+  result: planned
+  operation: update
+  changes:
+    ipv4:
+      from: 198.51.100.98/32
+      to: 198.51.100.99/32
+    description:
+      from: LEGACY-999
+      to: IPA2026-TEST-999
