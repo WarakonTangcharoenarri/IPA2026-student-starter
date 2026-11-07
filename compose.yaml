@@ -7,6 +7,7 @@ services:
       WEBEX_BOT_TOKEN: ${WEBEX_BOT_TOKEN:-}
       ROUTER_USER: ${ROUTER_USER:-}
       ROUTER_PASS: ${ROUTER_PASS:-}
+      RESTCONF_TLS_VERIFY: ${RESTCONF_TLS_VERIFY:-true}
       WEBHOOK_HOST: 0.0.0.0
       WEBHOOK_PORT: 8000
     ports:

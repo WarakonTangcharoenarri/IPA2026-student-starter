@@ -4,6 +4,7 @@ from pathlib import Path
 import pytest
 import yaml
 
+import app.backends.restconf as restconf
 from app.backends.restconf import (
     apply_interface,
     get_interface_state,
@@ -135,3 +136,39 @@ def test_restconf_case(case_file):
         )
 
     assert result == case["expected"]
+
+
+def test_restconf_default_verifies_tls(monkeypatch):
+    calls = []
+
+    def fake_get(url, **kwargs):
+        calls.append(kwargs)
+        return FakeResponse(404)
+
+    monkeypatch.setenv("ROUTER_USER", "user")
+    monkeypatch.setenv("ROUTER_PASS", "pass")
+    monkeypatch.delenv("RESTCONF_TLS_VERIFY", raising=False)
+    monkeypatch.setattr(restconf.requests, "get", fake_get)
+
+    result = restconf.get_interface_state("10.0.29.102", "Loopback1")
+
+    assert result == {"status": "ok", "result": "not_found", "interface": None}
+    assert calls[0]["verify"] is True
+
+
+def test_restconf_can_explicitly_disable_tls_verification(monkeypatch):
+    calls = []
+
+    def fake_get(url, **kwargs):
+        calls.append(kwargs)
+        return FakeResponse(404)
+
+    monkeypatch.setenv("ROUTER_USER", "user")
+    monkeypatch.setenv("ROUTER_PASS", "pass")
+    monkeypatch.setenv("RESTCONF_TLS_VERIFY", "false")
+    monkeypatch.setattr(restconf.requests, "get", fake_get)
+
+    result = restconf.get_interface_state("10.0.29.102", "Loopback1")
+
+    assert result == {"status": "ok", "result": "not_found", "interface": None}
+    assert calls[0]["verify"] is False

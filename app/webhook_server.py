@@ -60,6 +60,7 @@ class WebexEventHandler:
         if not isinstance(files, list):
             return None
 
+        _LOG.info("Processing Webex message attachment_count=%d", len(files))
         if len(files) > 1:
             result = {
                 "status": "error",
@@ -88,10 +89,16 @@ class WebexEventHandler:
 
         if not isinstance(result, dict):
             raise TypeError("Request processor must return a response dictionary")
+        if result.get("status") == "error":
+            _LOG.warning(
+                "Webex message processing returned error result=%s",
+                result.get("result"),
+            )
         self.client.send_message(
             room_id,
             json.dumps(result),
         )
+        _LOG.info("Webex message processing and reply completed")
         return result
 
 def make_http_handler(submit_event):
@@ -170,6 +177,7 @@ def make_http_handler(submit_event):
     return WebhookHTTPHandler
 
 def main():
+    logging.basicConfig(level=os.environ.get("LOG_LEVEL", "INFO"))
     client = WebexClient()
     identity = client.get_me()
     bot_person_id = identity.get("id") if isinstance(identity, dict) else None

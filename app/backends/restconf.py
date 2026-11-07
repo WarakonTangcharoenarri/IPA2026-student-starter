@@ -1,4 +1,6 @@
 from ipaddress import IPv4Interface, IPv4Network
+import logging
+import os
 from urllib.parse import quote
 
 import requests
@@ -15,6 +17,20 @@ from app.backends.planning import plan_interface as _plan_interface
 
 _BASE_URL = "https://{router}/restconf/data"
 _INTERFACE_NS = "ietf-interfaces:interfaces/interface"
+_LOG = logging.getLogger(__name__)
+
+
+def _tls_verify_setting():
+    setting = os.environ.get("RESTCONF_TLS_VERIFY", "true").strip().lower()
+    if setting in ("1", "true", "yes", "on"):
+        return True
+    if setting in ("0", "false", "no", "off"):
+        _LOG.warning(
+            "RESTCONF TLS certificate verification is disabled; "
+            "connections may be vulnerable to interception"
+        )
+        return False
+    raise ValueError("RESTCONF_TLS_VERIFY must be a boolean value")
 
 
 def _default_get(url):
@@ -23,6 +39,7 @@ def _default_get(url):
         auth=router_credentials(),
         headers={"Accept": "application/yang-data+json"},
         timeout=10,
+        verify=_tls_verify_setting(),
     )
 
 
@@ -36,6 +53,7 @@ def _default_put(url, *, json):
             "Content-Type": "application/yang-data+json",
         },
         timeout=10,
+        verify=_tls_verify_setting(),
     )
 
 
@@ -105,7 +123,11 @@ def get_interface_state(
         if not 200 <= response.status_code < 300:
             return {"status": "error", "result": "backend_failed"}
         return _status_from_payload(response.json())
+    except requests.exceptions.SSLError as exc:
+        _LOG.error("RESTCONF TLS verification failed: %s", exc)
+        return error_response(exc)
     except Exception as exc:
+        _LOG.exception("RESTCONF status request failed")
         return error_response(exc)
 
 
@@ -170,5 +192,9 @@ def apply_interface(
         if response.status_code not in (200, 201, 204):
             return {"status": "error", "result": "backend_failed"}
         return applied_response()
+    except requests.exceptions.SSLError as exc:
+        _LOG.error("RESTCONF TLS verification failed: %s", exc)
+        return error_response(exc)
     except Exception as exc:
+        _LOG.exception("RESTCONF apply request failed")
         return error_response(exc)
