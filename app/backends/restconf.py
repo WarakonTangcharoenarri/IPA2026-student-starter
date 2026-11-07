@@ -21,7 +21,7 @@ _LOG = logging.getLogger(__name__)
 
 
 def _tls_verify_setting():
-    setting = os.environ.get("RESTCONF_TLS_VERIFY", "true").strip().lower()
+    setting = os.environ.get("RESTCONF_TLS_VERIFY", "false").strip().lower()
     if setting in ("1", "true", "yes", "on"):
         return True
     if setting in ("0", "false", "no", "off"):

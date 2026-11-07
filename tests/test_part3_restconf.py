@@ -138,7 +138,7 @@ def test_restconf_case(case_file):
     assert result == case["expected"]
 
 
-def test_restconf_default_verifies_tls(monkeypatch):
+def test_restconf_default_disables_tls_verification(monkeypatch):
     calls = []
 
     def fake_get(url, **kwargs):
@@ -153,10 +153,10 @@ def test_restconf_default_verifies_tls(monkeypatch):
     result = restconf.get_interface_state("10.0.29.102", "Loopback1")
 
     assert result == {"status": "ok", "result": "not_found", "interface": None}
-    assert calls[0]["verify"] is True
+    assert calls[0]["verify"] is False
 
 
-def test_restconf_can_explicitly_disable_tls_verification(monkeypatch):
+def test_restconf_can_explicitly_enable_tls_verification(monkeypatch):
     calls = []
 
     def fake_get(url, **kwargs):
@@ -165,10 +165,10 @@ def test_restconf_can_explicitly_disable_tls_verification(monkeypatch):
 
     monkeypatch.setenv("ROUTER_USER", "user")
     monkeypatch.setenv("ROUTER_PASS", "pass")
-    monkeypatch.setenv("RESTCONF_TLS_VERIFY", "false")
+    monkeypatch.setenv("RESTCONF_TLS_VERIFY", "true")
     monkeypatch.setattr(restconf.requests, "get", fake_get)
 
     result = restconf.get_interface_state("10.0.29.102", "Loopback1")
 
     assert result == {"status": "ok", "result": "not_found", "interface": None}
-    assert calls[0]["verify"] is False
+    assert calls[0]["verify"] is True
