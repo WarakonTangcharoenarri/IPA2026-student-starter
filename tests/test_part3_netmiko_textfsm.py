@@ -125,16 +125,24 @@ def test_netmiko_textfsm_case(case_file):
     ("interfaces", "expected"),
     [
         (
-            [{"intf": "GigabitEthernet1"}],
+            (
+                "Interface              IP-Address      OK? Method Status "
+                "Protocol\nGigabitEthernet1     10.0.0.1       YES NVRAM up "
+                "up\n"
+            ),
             {"status": "ok", "result": "deleted"},
         ),
         (
-            [{"intf": "Loopback123"}],
+            (
+                "Interface              IP-Address      OK? Method Status "
+                "Protocol\nLoopback1230          unassigned YES unset "
+                "up up\nLoopback123          unassigned YES unset up up\n"
+            ),
             {"status": "error", "result": "backend_failed"},
         ),
         (
-            [],
-            {"status": "error", "result": "backend_failed"},
+            "Interface              IP-Address      OK? Method Status Protocol\n",
+            {"status": "ok", "result": "deleted"},
         ),
     ],
 )
@@ -146,7 +154,7 @@ def test_delete_verifies_with_interface_brief(
     class FakeConnection:
         def send_command(self, command, use_textfsm=False):
             assert command == "show ip interface brief"
-            assert use_textfsm
+            assert not use_textfsm
             return interfaces
 
         def disconnect(self):

@@ -776,11 +776,10 @@ The delete path uses Netmiko to enter IOS configuration mode and issue:
 
     no interface Loopback123
 
-TextFSM is not needed to parse the delete command itself. The Netmiko +
-TextFSM status path is used before the command to determine whether the
-interface exists. After deletion, `show ip interface brief` is used to
-confirm the interface is absent; querying a deleted interface directly may
-produce output that cannot be parsed as interface data.
+TextFSM is not needed to parse the delete command itself. The Netmiko + TextFSM status path is used before the command to determine
+whether the interface exists. After deletion, the raw CLI output from
+`show ip interface brief` is used to confirm the interface is absent; this
+verification does not depend on a TextFSM template for that command.
 
 This separation keeps delete behavior simple and avoids requiring
 backend-specific delete semantics from RESTCONF, NETCONF, or Ansible.

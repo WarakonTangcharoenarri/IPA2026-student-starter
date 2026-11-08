@@ -84,25 +84,18 @@ def _default_netmiko_interface_exists(router, interface_name):
     try:
         interfaces = connection.send_command(
             "show ip interface brief",
-            use_textfsm=True,
         )
     finally:
         connection.disconnect()
 
-    records = _as_records(interfaces)
-    if not records:
-        raise ValueError("TextFSM interface data is empty")
-
-    names = [
-        _find_field(record, "interface", "intf", "port")
-        for record in records
-    ]
-    if any(not isinstance(name, str) or not name for name in names):
-        raise ValueError("TextFSM interface data is incomplete")
+    if not isinstance(interfaces, str):
+        raise ValueError("Interface brief response is malformed")
 
     return any(
-        _canonical_interface(name) == _canonical_interface(interface_name)
-        for name in names
+        line.split()
+        and _canonical_interface(line.split()[0])
+        == _canonical_interface(interface_name)
+        for line in interfaces.splitlines()
     )
 
 
