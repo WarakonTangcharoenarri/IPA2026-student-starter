@@ -322,7 +322,7 @@ The backend must remove the requested Loopback interface using Cisco IOS CLI:
 The intended flow is:
 
     delete_interface(router, interface_name)
-        -> get_interface_state(router, interface_name)
+        -> check "show ip interface brief"
         -> if not_found: return not_found
         -> if found: send "no interface <interface_name>" with Netmiko
         -> check "show ip interface brief"

@@ -91,11 +91,21 @@ def _default_netmiko_interface_exists(router, interface_name):
     if not isinstance(interfaces, str):
         raise ValueError("Interface brief response is malformed")
 
+    lines = [line.split() for line in interfaces.splitlines() if line.strip()]
+    if not any(
+        len(fields) >= 2
+        and fields[0].lower() == "interface"
+        and fields[1].lower() == "ip-address"
+        for fields in lines
+    ):
+        raise ValueError("Interface brief response has no table header")
+
     return any(
-        line.split()
-        and _canonical_interface(line.split()[0])
+        fields[0].lower() != "interface"
+        and _canonical_interface(fields[0])
         == _canonical_interface(interface_name)
-        for line in interfaces.splitlines()
+        for fields in lines
+        if fields
     )
 
 
@@ -216,11 +226,19 @@ def delete_interface(
             }
         return {"status": "error", "result": "backend_failed"}
 
-    current = get_interface_state(router, interface_name)
-    if current["status"] == "error":
-        return current
-    if current["result"] == "not_found":
-        return current
+    try:
+        interface_exists = _default_netmiko_interface_exists(
+            router,
+            interface_name,
+        )
+    except Exception as exc:
+        return error_response(exc)
+    if not interface_exists:
+        return {
+            "status": "ok",
+            "result": "not_found",
+            "interface": None,
+        }
 
     try:
         _default_netmiko_delete(router, interface_name)

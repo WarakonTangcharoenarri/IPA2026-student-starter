@@ -122,40 +122,55 @@ def test_netmiko_textfsm_case(case_file):
 
 
 @pytest.mark.parametrize(
-    ("interfaces", "expected"),
+    ("responses", "expected"),
     [
         (
-            (
-                "Interface              IP-Address      OK? Method Status "
-                "Protocol\nGigabitEthernet1     10.0.0.1       YES NVRAM up "
-                "up\n"
-            ),
+            [
+                "Interface IP-Address OK? Method Status Protocol\n"
+                "Loopback123 unassigned YES unset up up\n",
+                "Interface IP-Address OK? Method Status Protocol\n"
+                "GigabitEthernet1 10.0.0.1 YES NVRAM up up\n",
+            ],
             {"status": "ok", "result": "deleted"},
         ),
         (
-            (
-                "Interface              IP-Address      OK? Method Status "
-                "Protocol\nLoopback1230          unassigned YES unset "
-                "up up\nLoopback123          unassigned YES unset up up\n"
-            ),
+            [
+                "Interface IP-Address OK? Method Status Protocol\n"
+                "Loopback123 unassigned YES unset up up\n",
+                "Interface IP-Address OK? Method Status Protocol\n"
+                "Loopback1230 unassigned YES unset up up\n"
+                "Loopback123 unassigned YES unset up up\n",
+            ],
             {"status": "error", "result": "backend_failed"},
         ),
         (
-            "Interface              IP-Address      OK? Method Status Protocol\n",
+            [
+                "Interface IP-Address OK? Method Status Protocol\n"
+                "Loopback123 unassigned YES unset up up\n",
+                "Interface IP-Address OK? Method Status Protocol\n",
+            ],
             {"status": "ok", "result": "deleted"},
+        ),
+        (
+            ["Interface IP-Address OK? Method Status Protocol\n"],
+            {
+                "status": "ok",
+                "result": "not_found",
+                "interface": None,
+            },
         ),
     ],
 )
 def test_delete_verifies_with_interface_brief(
     monkeypatch,
-    interfaces,
+    responses,
     expected,
 ):
     class FakeConnection:
         def send_command(self, command, use_textfsm=False):
             assert command == "show ip interface brief"
             assert not use_textfsm
-            return interfaces
+            return responses.pop(0)
 
         def disconnect(self):
             pass
@@ -169,21 +184,16 @@ def test_delete_verifies_with_interface_brief(
             ConnectHandler=lambda **kwargs: FakeConnection(),
         ),
     )
-    monkeypatch.setattr(
-        netmiko_textfsm,
-        "get_interface_state",
-        lambda router, interface_name: {
-            "status": "ok",
-            "result": "found",
-            "interface": {"name": interface_name},
-        },
-    )
+    delete_calls = []
     monkeypatch.setattr(
         netmiko_textfsm,
         "_default_netmiko_delete",
-        lambda router, interface_name: None,
+        lambda router, interface_name: delete_calls.append(interface_name),
     )
 
     result = delete_interface("router", "Loopback123")
 
     assert result == expected
+    assert delete_calls == (
+        [] if expected["result"] == "not_found" else ["Loopback123"]
+    )
