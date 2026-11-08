@@ -1,8 +1,11 @@
+import sys
+from types import SimpleNamespace
 from pathlib import Path
 
 import pytest
 import yaml
 
+import app.backends.netmiko_textfsm as netmiko_textfsm
 from app.backends.netmiko_textfsm import (
     delete_interface,
     get_interface_state,
@@ -116,3 +119,63 @@ def test_netmiko_textfsm_case(case_file):
         )
 
     assert result == case["expected"]
+
+
+@pytest.mark.parametrize(
+    ("interfaces", "expected"),
+    [
+        (
+            [{"intf": "GigabitEthernet1"}],
+            {"status": "ok", "result": "deleted"},
+        ),
+        (
+            [{"intf": "Loopback123"}],
+            {"status": "error", "result": "backend_failed"},
+        ),
+        (
+            [],
+            {"status": "error", "result": "backend_failed"},
+        ),
+    ],
+)
+def test_delete_verifies_with_interface_brief(
+    monkeypatch,
+    interfaces,
+    expected,
+):
+    class FakeConnection:
+        def send_command(self, command, use_textfsm=False):
+            assert command == "show ip interface brief"
+            assert use_textfsm
+            return interfaces
+
+        def disconnect(self):
+            pass
+
+    monkeypatch.setenv("ROUTER_USER", "user")
+    monkeypatch.setenv("ROUTER_PASS", "password")
+    monkeypatch.setitem(
+        sys.modules,
+        "netmiko",
+        SimpleNamespace(
+            ConnectHandler=lambda **kwargs: FakeConnection(),
+        ),
+    )
+    monkeypatch.setattr(
+        netmiko_textfsm,
+        "get_interface_state",
+        lambda router, interface_name: {
+            "status": "ok",
+            "result": "found",
+            "interface": {"name": interface_name},
+        },
+    )
+    monkeypatch.setattr(
+        netmiko_textfsm,
+        "_default_netmiko_delete",
+        lambda router, interface_name: None,
+    )
+
+    result = delete_interface("router", "Loopback123")
+
+    assert result == expected

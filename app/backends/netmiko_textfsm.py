@@ -70,6 +70,42 @@ def _find_field(record, *names):
     return None
 
 
+def _default_netmiko_interface_exists(router, interface_name):
+    from netmiko import ConnectHandler
+
+    username, password = router_credentials()
+    connection = ConnectHandler(
+        device_type="cisco_ios",
+        host=router,
+        username=username,
+        password=password,
+        timeout=10,
+    )
+    try:
+        interfaces = connection.send_command(
+            "show ip interface brief",
+            use_textfsm=True,
+        )
+    finally:
+        connection.disconnect()
+
+    records = _as_records(interfaces)
+    if not records:
+        raise ValueError("TextFSM interface data is empty")
+
+    names = [
+        _find_field(record, "interface", "intf", "port")
+        for record in records
+    ]
+    if any(not isinstance(name, str) or not name for name in names):
+        raise ValueError("TextFSM interface data is incomplete")
+
+    return any(
+        _canonical_interface(name) == _canonical_interface(interface_name)
+        for name in names
+    )
+
+
 def get_interface_state(
     router,
     interface_name,
@@ -198,9 +234,14 @@ def delete_interface(
     except Exception as exc:
         return error_response(exc)
 
-    verification = get_interface_state(router, interface_name)
-    if verification["status"] == "error":
-        return verification
-    if verification["result"] == "not_found":
+    try:
+        interface_exists = _default_netmiko_interface_exists(
+            router,
+            interface_name,
+        )
+    except Exception as exc:
+        return error_response(exc)
+
+    if not interface_exists:
         return {"status": "ok", "result": "deleted"}
     return {"status": "error", "result": "backend_failed"}
