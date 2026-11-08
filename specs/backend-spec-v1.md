@@ -536,8 +536,12 @@ status path.
 
 The reference implementation runs two read-only IOS commands:
 
+    show ip interface brief
     show ip interface <interface_name>
     show interfaces description
+
+The brief output is checked first. If the requested interface is absent,
+return `not_found` without querying it directly.
 
 `show ip interface` is parsed with the NTC TextFSM template for Cisco IOS
 and supplies:

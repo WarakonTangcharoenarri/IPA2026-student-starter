@@ -121,6 +121,44 @@ def test_netmiko_textfsm_case(case_file):
     assert result == case["expected"]
 
 
+def test_status_returns_not_found_without_querying_missing_interface(
+    monkeypatch,
+):
+    commands = []
+
+    class FakeConnection:
+        def send_command(self, command, use_textfsm=False):
+            commands.append(command)
+            assert command == "show ip interface brief"
+            assert not use_textfsm
+            return (
+                "Interface IP-Address OK? Method Status Protocol\n"
+                "GigabitEthernet1 10.0.29.101 YES NVRAM up up\n"
+            )
+
+        def disconnect(self):
+            pass
+
+    monkeypatch.setenv("ROUTER_USER", "user")
+    monkeypatch.setenv("ROUTER_PASS", "password")
+    monkeypatch.setitem(
+        sys.modules,
+        "netmiko",
+        SimpleNamespace(
+            ConnectHandler=lambda **kwargs: FakeConnection(),
+        ),
+    )
+
+    result = get_interface_state("10.0.29.101", "Loopback67070157")
+
+    assert result == {
+        "status": "ok",
+        "result": "not_found",
+        "interface": None,
+    }
+    assert commands == ["show ip interface brief"]
+
+
 @pytest.mark.parametrize(
     ("responses", "expected"),
     [

@@ -29,6 +29,10 @@ def _default_netmiko_get(router, interface_name):
         timeout=10,
     )
     try:
+        interfaces = connection.send_command("show ip interface brief")
+        if not _interface_exists_in_brief(interfaces, interface_name):
+            return [], []
+
         ip_info = connection.send_command(
             f"show ip interface {interface_name}",
             use_textfsm=True,
@@ -70,24 +74,7 @@ def _find_field(record, *names):
     return None
 
 
-def _default_netmiko_interface_exists(router, interface_name):
-    from netmiko import ConnectHandler
-
-    username, password = router_credentials()
-    connection = ConnectHandler(
-        device_type="cisco_ios",
-        host=router,
-        username=username,
-        password=password,
-        timeout=10,
-    )
-    try:
-        interfaces = connection.send_command(
-            "show ip interface brief",
-        )
-    finally:
-        connection.disconnect()
-
+def _interface_exists_in_brief(interfaces, interface_name):
     if not isinstance(interfaces, str):
         raise ValueError("Interface brief response is malformed")
 
@@ -107,6 +94,27 @@ def _default_netmiko_interface_exists(router, interface_name):
         for fields in lines
         if fields
     )
+
+
+def _default_netmiko_interface_exists(router, interface_name):
+    from netmiko import ConnectHandler
+
+    username, password = router_credentials()
+    connection = ConnectHandler(
+        device_type="cisco_ios",
+        host=router,
+        username=username,
+        password=password,
+        timeout=10,
+    )
+    try:
+        interfaces = connection.send_command(
+            "show ip interface brief",
+        )
+    finally:
+        connection.disconnect()
+
+    return _interface_exists_in_brief(interfaces, interface_name)
 
 
 def get_interface_state(
